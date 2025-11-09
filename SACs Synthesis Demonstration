@@ -1,0 +1,789 @@
+// 绘制了一个单原子材料合成的范式动画，有借助Deepseek完成代码
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>纳米颗粒与二维片层结合转化为单原子</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a2a3a, #0d1b2a);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            max-width: 800px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #a0a0a0;
+        }
+        
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            max-width: 1200px;
+        }
+        
+        .animation-container {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            background: #0f1c2e;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 1px solid #2a3a4a;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #4a6572, #344955);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #5d7c8a, #455a64);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .phase-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            border-left: 4px solid #4facfe;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+        }
+        
+        .info-panel {
+            width: 300px;
+            background: rgba(15, 28, 46, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #2a3a4a;
+            backdrop-filter: blur(5px);
+        }
+        
+        .info-panel h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #4facfe;
+            border-bottom: 1px solid #2a3a4a;
+            padding-bottom: 10px;
+        }
+        
+        .phase-info {
+            margin-bottom: 20px;
+        }
+        
+        .phase-info h3 {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            color: #00f2fe;
+        }
+        
+        .phase-info p {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #b0b0b0;
+        }
+        
+        .legend {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        .nanoparticle {
+            background: linear-gradient(135deg, #ffd700, #ffa500);
+        }
+        
+        .single-atom {
+            background: radial-gradient(circle, #ff4d4d, #cc0000);
+            box-shadow: 0 0 10px #ff4d4d;
+        }
+        
+        .layer {
+            background: linear-gradient(135deg, #4a6572, #344955);
+        }
+        
+        .active-site {
+            background: radial-gradient(circle, #00ff88, #00cc66);
+            box-shadow: 0 0 8px #00ff88;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #2a3a4a;
+            border-radius: 3px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .timer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #a0a0a0;
+        }
+        
+        @media (max-width: 1100px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .animation-container {
+                width: 100%;
+                max-width: 800px;
+            }
+            
+            .info-panel {
+                width: 100%;
+                max-width: 800px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>纳米颗粒与二维片层结合转化为单原子</h1>
+        <p class="subtitle">动态展示纳米材料在载体上的分散与锚定过程</p>
+    </div>
+    
+    <div class="container">
+        <div class="animation-container">
+            <div class="phase-indicator" id="phaseIndicator">阶段 1: 纳米颗粒与二维片层初始结合</div>
+            <canvas id="animationCanvas"></canvas>
+        </div>
+        
+        <div class="info-panel">
+            <h2>动画说明</h2>
+            
+            <div class="phase-info">
+                <h3>阶段 1: 初始结合</h3>
+                <p>金色纳米颗粒通过物理或化学作用力与二维片层材料表面结合，形成初始复合物。</p>
+            </div>
+            
+            <div class="phase-info">
+                <h3>阶段 2: 能量注入与转化</h3>
+                <p>外部能量注入导致纳米颗粒振动并逐渐分解为单个原子，纳米颗粒完全消失。</p>
+            </div>
+            
+            <div class="phase-info">
+                <h3>阶段 3: 单原子锚定</h3>
+                <p>单原子在二维片层表面扩散，最终稳定锚定在特定活性位点上。</p>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="color-box nanoparticle"></div>
+                    <span>纳米颗粒</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box single-atom"></div>
+                    <span>单原子</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box layer"></div>
+                    <span>二维片层</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box active-site"></div>
+                    <span>活性位点</span>
+                </div>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress" id="progressBar"></div>
+            </div>
+            <div class="timer" id="timer">已运行: 0秒</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button id="prevBtn">上一阶段</button>
+        <button id="playPauseBtn">暂停</button>
+        <button id="nextBtn">下一阶段</button>
+        <button id="resetBtn">重置动画</button>
+        <button id="speedDownBtn">减速</button>
+        <button id="speedUpBtn">加速</button>
+    </div>
+
+    <script>
+        // 获取Canvas元素和上下文
+        const canvas = document.getElementById('animationCanvas');
+        const ctx = canvas.getContext('2d');
+        const phaseIndicator = document.getElementById('phaseIndicator');
+        const progressBar = document.getElementById('progressBar');
+        const timerElement = document.getElementById('timer');
+        
+        // 设置Canvas尺寸
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        
+        // 初始调整尺寸
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 动画状态
+        let currentPhase = 1;
+        let isPlaying = true;
+        let animationFrameId;
+        let startTime = Date.now();
+        let animationSpeed = 1.0;
+        
+        // 二维片层
+        const layer = {
+            x: canvas.width * 0.1,
+            y: canvas.height * 0.7,
+            width: canvas.width * 0.8,
+            height: canvas.height * 0.2,
+            color: '#4a6572',
+            activeSites: []
+        };
+        
+        // 生成活性位点
+        function generateActiveSites() {
+            layer.activeSites = [];
+            for (let i = 0; i < 20; i++) {
+                layer.activeSites.push({
+                    x: layer.x + Math.random() * layer.width,
+                    y: layer.y + Math.random() * layer.height * 0.5,
+                    active: false,
+                    pulse: 0
+                });
+            }
+        }
+        
+        generateActiveSites();
+        
+        // 纳米颗粒
+        const nanoparticles = [];
+        const numNanoparticles = 6;
+        
+        // 初始化纳米颗粒
+        function initializeNanoparticles() {
+            nanoparticles.length = 0;
+            for (let i = 0; i < numNanoparticles; i++) {
+                nanoparticles.push({
+                    x: layer.x + Math.random() * layer.width,
+                    y: -50 - Math.random() * 100,
+                    targetX: layer.x + Math.random() * layer.width,
+                    targetY: layer.y - 30 - Math.random() * 20,
+                    radius: 15 + Math.random() * 10,
+                    color: '#ffd700',
+                    attached: false,
+                    vibration: 0,
+                    atoms: [],
+                    atomCount: 3 + Math.floor(Math.random() * 4),
+                    disappearing: false,
+                    disappearProgress: 0
+                });
+            }
+        }
+        
+        initializeNanoparticles();
+        
+        // 单原子数组
+        let atoms = [];
+        
+        // 能量波
+        let energyWave = {
+            active: false,
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 0,
+            maxRadius: Math.max(canvas.width, canvas.height) * 0.7
+        };
+        
+        // 绘制二维片层
+        function drawLayer() {
+            // 绘制片层主体
+            ctx.fillStyle = layer.color;
+            ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
+            
+            // 绘制片层表面结构
+            ctx.strokeStyle = 'rgba(150, 200, 255, 0.3)';
+            ctx.lineWidth = 1;
+            
+            // 绘制网格线表示片层结构
+            for (let i = 0; i <= 10; i++) {
+                const x = layer.x + (i / 10) * layer.width;
+                ctx.beginPath();
+                ctx.moveTo(x, layer.y);
+                ctx.lineTo(x, layer.y + layer.height);
+                ctx.stroke();
+            }
+            
+            for (let i = 0; i <= 5; i++) {
+                const y = layer.y + (i / 5) * layer.height;
+                ctx.beginPath();
+                ctx.moveTo(layer.x, y);
+                ctx.lineTo(layer.x + layer.width, y);
+                ctx.stroke();
+            }
+            
+            // 绘制活性位点
+            layer.activeSites.forEach(site => {
+                const pulse = Math.sin(site.pulse) * 0.2 + 0.8;
+                const radius = site.active ? 6 * pulse : 5;
+                
+                ctx.beginPath();
+                ctx.arc(site.x, site.y, radius, 0, Math.PI * 2);
+                
+                if (site.active) {
+                    const gradient = ctx.createRadialGradient(
+                        site.x, site.y, 0,
+                        site.x, site.y, radius
+                    );
+                    gradient.addColorStop(0, 'rgba(0, 255, 136, 0.9)');
+                    gradient.addColorStop(1, 'rgba(0, 204, 102, 0.5)');
+                    ctx.fillStyle = gradient;
+                } else {
+                    ctx.fillStyle = 'rgba(100, 255, 100, 0.3)';
+                }
+                
+                ctx.fill();
+                
+                if (site.active) {
+                    ctx.strokeStyle = 'rgba(0, 255, 136, 0.7)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+            });
+        }
+        
+        // 绘制纳米颗粒
+        function drawNanoparticles() {
+            nanoparticles.forEach(np => {
+                if (np.disappearing && np.disappearProgress >= 1) return;
+                
+                // 计算当前半径和透明度
+                const currentRadius = np.radius * (1 - np.disappearProgress);
+                const alpha = 1 - np.disappearProgress;
+                
+                // 绘制纳米颗粒
+                ctx.beginPath();
+                ctx.arc(np.x, np.y, currentRadius, 0, Math.PI * 2);
+                
+                // 添加光泽效果
+                const gradient = ctx.createRadialGradient(
+                    np.x - currentRadius * 0.3, np.y - currentRadius * 0.3, 1,
+                    np.x, np.y, currentRadius
+                );
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${0.8 * alpha})`);
+                gradient.addColorStop(1, `rgba(255, 215, 0, ${0.9 * alpha})`);
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // 绘制边框
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * alpha})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // 如果已附着，绘制连接线
+                if (np.attached && np.disappearProgress < 0.5) {
+                    ctx.beginPath();
+                    ctx.moveTo(np.x, np.y + currentRadius);
+                    ctx.lineTo(np.x, layer.y);
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 * (1 - np.disappearProgress * 2)})`;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            });
+        }
+        
+        // 绘制单原子
+        function drawAtoms() {
+            atoms.forEach(atom => {
+                ctx.beginPath();
+                ctx.arc(atom.x, atom.y, atom.radius, 0, Math.PI * 2);
+                
+                // 原子发光效果
+                const gradient = ctx.createRadialGradient(
+                    atom.x, atom.y, 0,
+                    atom.x, atom.y, atom.radius
+                );
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                gradient.addColorStop(0.7, atom.color);
+                gradient.addColorStop(1, 'rgba(255, 50, 50, 0.3)');
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // 绘制与活性位点的连接
+                if (atom.anchored) {
+                    ctx.beginPath();
+                    ctx.moveTo(atom.x, atom.y);
+                    ctx.lineTo(atom.anchoredTo.x, atom.anchoredTo.y);
+                    ctx.strokeStyle = 'rgba(255, 100, 100, 0.5)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+            });
+        }
+        
+        // 绘制能量波
+        function drawEnergyWave() {
+            if (!energyWave.active) return;
+            
+            ctx.beginPath();
+            ctx.arc(energyWave.x, energyWave.y, energyWave.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 200, 50, ${1 - energyWave.radius / energyWave.maxRadius})`;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // 内圈
+            ctx.beginPath();
+            ctx.arc(energyWave.x, energyWave.y, energyWave.radius * 0.7, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 100, 100, ${0.7 - energyWave.radius / energyWave.maxRadius})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
+        // 更新动画
+        function update() {
+            // 清除画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 根据当前阶段更新
+            switch(currentPhase) {
+                case 1:
+                    updatePhase1();
+                    phaseIndicator.textContent = "阶段 1: 纳米颗粒与二维片层初始结合";
+                    progressBar.style.width = "33%";
+                    break;
+                case 2:
+                    updatePhase2();
+                    phaseIndicator.textContent = "阶段 2: 能量注入与纳米颗粒分解";
+                    progressBar.style.width = "66%";
+                    break;
+                case 3:
+                    updatePhase3();
+                    phaseIndicator.textContent = "阶段 3: 单原子分散与稳定锚定";
+                    progressBar.style.width = "100%";
+                    break;
+            }
+            
+            // 更新计时器
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            timerElement.textContent = `已运行: ${elapsed}秒`;
+            
+            // 绘制所有元素
+            drawLayer();
+            drawNanoparticles();
+            drawAtoms();
+            drawEnergyWave();
+            
+            if (isPlaying) {
+                animationFrameId = requestAnimationFrame(update);
+            }
+        }
+        
+        // 第一阶段更新：纳米颗粒与二维片层初始结合
+        function updatePhase1() {
+            let allAttached = true;
+            
+            nanoparticles.forEach(np => {
+                if (!np.attached) {
+                    // 纳米颗粒向下移动
+                    const dx = np.targetX - np.x;
+                    const dy = np.targetY - np.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 2) {
+                        np.attached = true;
+                        np.x = np.targetX;
+                        np.y = np.targetY;
+                    } else {
+                        np.x += dx * 0.05 * animationSpeed;
+                        np.y += dy * 0.05 * animationSpeed;
+                        allAttached = false;
+                    }
+                }
+            });
+            
+            // 如果所有纳米颗粒都已附着，自动进入下一阶段
+            if (allAttached && nanoparticles.length > 0) {
+                setTimeout(() => {
+                    if (currentPhase === 1) {
+                        currentPhase = 2;
+                        // 激活能量波
+                        energyWave.active = true;
+                        energyWave.x = canvas.width / 2;
+                        energyWave.y = canvas.height / 2;
+                        energyWave.radius = 0;
+                    }
+                }, 1000 / animationSpeed);
+            }
+        }
+        
+        // 第二阶段更新：能量注入与纳米颗粒分解
+        function updatePhase2() {
+            // 更新能量波
+            if (energyWave.active) {
+                energyWave.radius += 2 * animationSpeed;
+                if (energyWave.radius > energyWave.maxRadius) {
+                    energyWave.active = false;
+                }
+            }
+            
+            // 激活片层上的位点
+            layer.activeSites.forEach(site => {
+                site.pulse += 0.05 * animationSpeed;
+                if (Math.random() < 0.02 * animationSpeed) {
+                    site.active = true;
+                }
+            });
+            
+            // 纳米颗粒振动和分解
+            let allNanoparticlesGone = true;
+            
+            nanoparticles.forEach(np => {
+                if (!np.disappearing || np.disappearProgress < 1) {
+                    allNanoparticlesGone = false;
+                }
+                
+                np.vibration += 0.1 * animationSpeed;
+                np.x += Math.sin(np.vibration) * 0.5;
+                np.y += Math.cos(np.vibration) * 0.3;
+                
+                // 开始消失过程
+                if (!np.disappearing && Math.random() < 0.01 * animationSpeed) {
+                    np.disappearing = true;
+                }
+                
+                // 更新消失进度
+                if (np.disappearing && np.disappearProgress < 1) {
+                    np.disappearProgress += 0.01 * animationSpeed;
+                    
+                    // 在消失过程中释放原子
+                    if (np.atoms.length < np.atomCount && Math.random() < 0.05 * animationSpeed) {
+                        for (let i = 0; i < np.atomCount; i++) {
+                            const angle = (i / np.atomCount) * Math.PI * 2;
+                            const distance = np.radius * 0.7;
+                            
+                            np.atoms.push({
+                                x: np.x + Math.cos(angle) * distance,
+                                y: np.y + Math.sin(angle) * distance,
+                                radius: 5,
+                                color: 'rgba(255, 50, 50, 0.9)',
+                                targetX: 0,
+                                targetY: 0,
+                                anchored: false,
+                                anchoredTo: null
+                            });
+                        }
+                        
+                        // 将原子添加到全局原子数组
+                        atoms = atoms.concat(np.atoms);
+                    }
+                }
+            });
+            
+            // 如果所有纳米颗粒都已消失，进入下一阶段
+            if (allNanoparticlesGone) {
+                setTimeout(() => {
+                    if (currentPhase === 2) {
+                        currentPhase = 3;
+                        // 为每个原子分配目标位置（活性位点）
+                        assignAtomsToSites();
+                    }
+                }, 2000 / animationSpeed);
+            }
+        }
+        
+        // 为原子分配活性位点
+        function assignAtomsToSites() {
+            const activeSites = layer.activeSites.filter(site => site.active);
+            
+            atoms.forEach((atom, index) => {
+                const siteIndex = index % activeSites.length;
+                atom.targetX = activeSites[siteIndex].x;
+                atom.targetY = activeSites[siteIndex].y - 10;
+                atom.anchoredTo = activeSites[siteIndex];
+            });
+        }
+        
+        // 第三阶段更新：单原子分散与稳定锚定
+        function updatePhase3() {
+            let allAnchored = true;
+            
+            atoms.forEach(atom => {
+                if (!atom.anchored) {
+                    const dx = atom.targetX - atom.x;
+                    const dy = atom.targetY - atom.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 2) {
+                        atom.anchored = true;
+                        atom.x = atom.targetX;
+                        atom.y = atom.targetY;
+                    } else {
+                        atom.x += dx * 0.03 * animationSpeed;
+                        atom.y += dy * 0.03 * animationSpeed;
+                        allAnchored = false;
+                    }
+                }
+            });
+        }
+        
+        // 控制按钮事件
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            if (currentPhase > 1) {
+                currentPhase--;
+                resetAnimation();
+            }
+        });
+        
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            if (currentPhase < 3) {
+                currentPhase++;
+                resetAnimation();
+            }
+        });
+        
+        document.getElementById('playPauseBtn').addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            document.getElementById('playPauseBtn').textContent = isPlaying ? '暂停' : '继续';
+            
+            if (isPlaying) {
+                update();
+            } else {
+                cancelAnimationFrame(animationFrameId);
+            }
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            resetAnimation();
+        });
+        
+        document.getElementById('speedDownBtn').addEventListener('click', () => {
+            if (animationSpeed > 0.2) {
+                animationSpeed -= 0.2;
+            }
+        });
+        
+        document.getElementById('speedUpBtn').addEventListener('click', () => {
+            if (animationSpeed < 3.0) {
+                animationSpeed += 0.2;
+            }
+        });
+        
+        // 重置动画状态
+        function resetAnimation() {
+            // 重置纳米颗粒
+            initializeNanoparticles();
+            
+            // 重置原子数组
+            atoms = [];
+            
+            // 重置活性位点
+            generateActiveSites();
+            
+            // 重置能量波
+            energyWave.active = false;
+            energyWave.radius = 0;
+            
+            // 重置计时器
+            startTime = Date.now();
+            
+            // 如果动画暂停，重新开始
+            if (!isPlaying) {
+                isPlaying = true;
+                document.getElementById('playPauseBtn').textContent = '暂停';
+                update();
+            }
+        }
+        
+        // 开始动画
+        update();
+    </script>
+</body>
+</html>
